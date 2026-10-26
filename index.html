@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rung Chuông Vàng - Hóa Học 12 (Chương 3)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.FB = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot };
+    </script>
+    <style>
+        body { 
+            background: #071026;
+            background: radial-gradient(circle at 50% -20%, #1e3a8a 0%, #071026 75%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            color: white; 
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .student-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .student-btn:active { transform: scale(0.95); }
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #334155; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
+        
+        .timer-circle {
+            transition: stroke-dashoffset 1s linear;
+        }
+    </style>
+</head>
+<body>
+    <div id="root" class="min-h-screen flex flex-col"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Bộ 12 câu hỏi Trắc nghiệm 4 lựa chọn ôn tập toàn bộ Chương 3: Hợp chất chứa Nitrogen - Hóa 12 (Kết nối tri thức)
+        // Độ khó tăng dần từ Nhận biết -> Thông hiểu -> Vận dụng -> Câu Chuông Vàng
+        const QUESTIONS = [
+            {
+                q: "Chất nào sau đây là nguyên nhân chính gây nên mùi tanh của cá?",
+                options: {
+                    A: "Aniline",
+                    B: "Trimethylamine",
+                    C: "Glycine",
+                    D: "Albumin"
+                },
+                correct: "B",
+                a: "B. Trimethylamine - (CH3)3N",
+                keywords: ["b", "trimethylamine", "(ch3)3n"]
+            },
+            {
+                q: "Hợp chất C6H5NH2 là nguyên liệu quan trọng trong công nghiệp phẩm nhuộm và dược phẩm. Tên thông thường của C6H5NH2 là gì?",
+                options: {
+                    A: "Methylamine",
+                    B: "Ethylamine",
+                    C: "Aniline",
+                    D: "Alanine"
+                },
+                correct: "C",
+                a: "C. Aniline (C6H5NH2)",
+                keywords: ["c", "aniline", "anilin"]
+            },
+            {
+                q: "Nhỏ vài giọt dung dịch aniline vào ống nghiệm đựng nước bromine thì quan sát thấy hiện tượng gì?",
+                options: {
+                    A: "Xuất hiện kết tủa màu trắng",
+                    B: "Dung dịch chuyển sang màu tím",
+                    C: "Xuất hiện kết tủa màu nâu đỏ",
+                    D: "Sủi bọt khí không màu"
+                },
+                correct: "A",
+                a: "A. Xuất hiện kết tủa màu trắng (2,4,6-tribromoaniline)",
+                keywords: ["a", "kết tủa màu trắng", "trắng"]
+            },
+            {
+                q: "Trong các đồng phân cấu tạo của amine có công thức phân tử C3H9N, có bao nhiêu đồng phân là amine bậc hai?",
+                options: {
+                    A: "0",
+                    B: "1",
+                    C: "2",
+                    D: "3"
+                },
+                correct: "B",
+                a: "B. 1 đồng phân (CH3-NH-C2H5: ethylmethylamine)",
+                keywords: ["b", "1"]
+            },
+            {
+                q: "Amino acid đơn giản nhất có công thức cấu tạo H2N-CH2-COOH có tên thông thường và kí hiệu là gì?",
+                options: {
+                    A: "Alanine (Ala)",
+                    B: "Valine (Val)",
+                    C: "Lysine (Lys)",
+                    D: "Glycine (Gly)"
+                },
+                correct: "D",
+                a: "D. Glycine (Gly)",
+                keywords: ["d", "glycine", "gly"]
+            },
+            {
+                q: "Ở điều kiện thường, các amino acid là chất rắn, có nhiệt độ nóng chảy cao và tan tốt trong nước vì chúng tồn tại chủ yếu ở dạng nào?",
+                options: {
+                    A: "Phân tử không phân cực",
+                    B: "Ion lưỡng cực",
+                    C: "Cation (ion dương)",
+                    D: "Anion (ion âm)"
+                },
+                correct: "B",
+                a: "B. Ion lưỡng cực",
+                keywords: ["b", "ion lưỡng cực", "lưỡng cực"]
+            },
+            {
+                q: "Các peptide có từ 2 liên kết peptide trở lên (từ tripeptide trở lên) phản ứng với thuốc thử biuret (Cu(OH)2/OH-) tạo dung dịch có màu gì đặc trưng?",
+                options: {
+                    A: "Màu vàng",
+                    B: "Màu đỏ gạch",
+                    C: "Màu tím",
+                    D: "Màu trắng"
+                },
+                correct: "C",
+                a: "C. Màu tím đặc trưng",
+                keywords: ["c", "màu tím", "tím"]
+            },
+            {
+                q: "Nhỏ vài giọt dung dịch nitric acid (HNO3) đặc vào ống nghiệm đựng dung dịch lòng trắng trứng (albumin) thì tạo thành sản phẩm rắn có màu gì?",
+                options: {
+                    A: "Màu vàng",
+                    B: "Màu xanh lam",
+                    C: "Màu đen",
+                    D: "Màu hồng"
+                },
+                correct: "A",
+                a: "A. Màu vàng (do phản ứng nitro hóa và đông tụ protein)",
+                keywords: ["a", "màu vàng", "vàng"]
+            },
+            {
+                q: "Ở pH ≈ 6, glycine tồn tại chủ yếu ở dạng ion lưỡng cực. Nếu đặt trong điện trường ở môi trường acid mạnh (pH < 2), glycine sẽ di chuyển như thế nào?",
+                options: {
+                    A: "Không di chuyển",
+                    B: "Di chuyển về cực dương (+)",
+                    C: "Di chuyển về cực âm (-)",
+                    D: "Bay hơi khỏi dung dịch"
+                },
+                correct: "C",
+                a: "C. Di chuyển về cực âm (-) do nhận H+ thành cation",
+                keywords: ["c", "cực âm", "âm"]
+            },
+            {
+                q: "Trùng ngưng ε-aminocaproic acid (H2N-[CH2]5-COOH) thu được polymer dùng để sản xuất loại tơ nào sau đây?",
+                options: {
+                    A: "Tơ tằm",
+                    B: "Tơ visco",
+                    C: "Tơ nitron (olon)",
+                    D: "Tơ capron"
+                },
+                correct: "D",
+                a: "D. Tơ capron (polycaproamide)",
+                keywords: ["d", "tơ capron", "capron"]
+            },
+            {
+                q: "Cho các phát biểu: (1) Ethylamine và aniline đều làm xanh quỳ tím; (2) Methylamine tạo phức màu xanh lam với Cu(OH)2; (3) Methylamine tác dụng với FeCl3 tạo kết tủa nâu đỏ; (4) Protein bị đông tụ khi đun nóng. Số phát biểu ĐÚNG là:",
+                options: {
+                    A: "1",
+                    B: "2",
+                    C: "3",
+                    D: "4"
+                },
+                correct: "C",
+                a: "C. 3 phát biểu đúng là (2), (3), (4). Phát biểu (1) sai vì aniline không làm đổi màu quỳ tím",
+                keywords: ["c", "3"]
+            },
+            {
+                q: "🔔 CÂU CHUÔNG VÀNG: Thủy phân không hoàn toàn tetrapeptide mạch hở Ala-Gly-Glu-Val có thể thu được tối đa bao nhiêu loại peptide nhỏ hơn (gồm cả dipeptide và tripeptide)?",
+                options: {
+                    A: "3 peptide",
+                    B: "4 peptide",
+                    C: "5 peptide",
+                    D: "6 peptide"
+                },
+                correct: "C",
+                a: "C. 5 peptide (3 dipeptide: Ala-Gly, Gly-Glu, Glu-Val và 2 tripeptide: Ala-Gly-Glu, Gly-Glu-Val)",
+                keywords: ["c", "5", "5 peptide"]
+            }
+        ];
+
+        const TIME_LIMIT = 20;
+
+        // Chuẩn hóa chuỗi tiếng Việt để so sánh tên và đáp án
+        const normalizeText = (str) => {
+            if (!str) return "";
+            return str.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+        };
+
+        const checkAnswerCorrect = (userAns, questionObj) => {
+            const cleanAns = normalizeText(userAns);
+            if (!cleanAns) return false;
+            const correctKey = normalizeText(questionObj.correct);
+            if (cleanAns === correctKey || cleanAns.startsWith(correctKey + ".") || cleanAns.startsWith(correctKey + " ")) {
+                return true;
+            }
+            return questionObj.keywords.some(kw => {
+                const cleanKw = normalizeText(kw);
+                if (cleanKw.length <= 2) {
+                    return cleanAns === cleanKw;
+                }
+                return cleanAns.includes(cleanKw);
+            });
+        };
+
+        const DEFAULT_STATE = {
+            isSetup: true,
+            currentQ: 0,
+            gameState: 'ready', // 'ready' | 'running' | 'locked'
+            timeLeft: TIME_LIMIT,
+            students: [],
+            answers: {}, // { studentId: "A" | "B" | "C" | "D" }
+            evalOverrides: {}, // { studentId: boolean }
+            rescuesLeft: 2,
+            paperPlaneLeft: 1
+        };
+
+        // Kiểm tra xem URL hiện tại có phải là link web hợp lệ (http/https) để điện thoại quét mở được ngay không
+        const getInitialValidUrl = () => {
+            try {
+                const href = window.location.href;
+                if (href.startsWith('http://') || href.startsWith('https://')) {
+                    if (!href.includes('about:') && !href.includes('blob:')) {
+                        return href.split('?')[0];
+                    }
+                }
+                if (document.referrer && (document.referrer.startsWith('http://') || document.referrer.startsWith('https://'))) {
+                    return document.referrer.split('?')[0];
+                }
+            } catch (e) {}
+            return "";
+        };
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [dbRef, setDbRef] = useState(null);
+            const [cloudState, setCloudState] = useState(DEFAULT_STATE);
+            const cloudStateRef = useRef(DEFAULT_STATE);
+            useEffect(() => { cloudStateRef.current = cloudState; }, [cloudState]);
+            
+            // Mã phòng trực tuyến (6 chữ số) giúp kết nối Máy tính GV và Điện thoại HS mọi lúc mọi nơi
+            const [roomCode, setRoomCode] = useState(() => {
+                const params = new URLSearchParams(window.location.search);
+                return params.get('room') || String(Math.floor(100000 + Math.random() * 900000));
+            });
+            const [studentPeerStatus, setStudentPeerStatus] = useState('connecting'); // 'connecting' | 'connected' | 'error'
+            const broadcastChannelRef = useRef(null);
+
+            // Đường dẫn Public URL chuẩn https:// để tạo mã QR cho điện thoại quét mở thẳng web
+            const [customPublicUrl, setCustomPublicUrl] = useState(getInitialValidUrl());
+
+            // Quản lý vai trò: 'select' | 'teacher' | 'student_login' | 'student_play'
+            const [role, setRole] = useState('select');
+            const [studentInput, setStudentInput] = useState(
+                "Nguyễn Văn An\nTrần Thị Bình\nLê Hoàng Châu\nPhạm Minh Dũng\nHoàng Bảo Ngọc\nĐỗ Gia Huy\nVũ Phương Thảo\nĐặng Quốc Khánh\nBùi Tuấn Kiệt\nNgô Thanh Hà\nLý Minh Khôi\nTrương Ngọc Ánh"
+            );
+            
+            // State phía Học sinh
+            const [loginName, setLoginName] = useState("");
+            const [loginError, setLoginError] = useState("");
+            const [currentStudentId, setCurrentStudentId] = useState(null);
+            const [myAnswer, setMyAnswer] = useState("");
+            const [inputRoomCode, setInputRoomCode] = useState(roomCode);
+
+            // State hỗ trợ Giả lập & Mã QR kết nối điện thoại
+            const [previewStudentMode, setPreviewStudentMode] = useState(false);
+            const [showQrModal, setShowQrModal] = useState(false);
+            const [copySuccess, setCopySuccess] = useState(false);
+            const [showRaceTrack, setShowRaceTrack] = useState(true);
+
+            // Tự động chuyển thẳng vào màn hình Học sinh nếu mở từ mã QR (?mode=student) hoặc trên màn hình điện thoại
+            useEffect(() => {
+                const params = new URLSearchParams(window.location.search);
+                const rCode = params.get('room');
+                if (rCode) {
+                    setRoomCode(rCode);
+                    setInputRoomCode(rCode);
+                }
+                if (params.get('mode') === 'student' || rCode || window.innerWidth < 768) {
+                    setRole('student_login');
+                }
+            }, []);
+
+            // Đồng bộ tức thời giữa các tab trên cùng trình duyệt qua BroadcastChannel & localStorage (không dùng WebSocket ngoài)
+            useEffect(() => {
+                if (!roomCode) return;
+                const channelName = 'rcv_hoa12_channel_' + roomCode;
+
+                try {
+                    if (typeof BroadcastChannel !== 'undefined') {
+                        const bc = new BroadcastChannel(channelName);
+                        broadcastChannelRef.current = bc;
+                        bc.onmessage = (event) => {
+                            const data = event.data;
+                            if (data && data.type === 'SYNC_STATE' && data.state) {
+                                setCloudState(data.state);
+                            }
+                        };
+                    }
+                } catch (e) {}
+
+                const handleStorage = (e) => {
+                    if (e.key === 'rcv_hoa12_local_' + roomCode && e.newValue) {
+                        try {
+                            const parsed = JSON.parse(e.newValue);
+                            if (parsed) setCloudState(parsed);
+                        } catch (err) {}
+                    }
+                };
+                window.addEventListener('storage', handleStorage);
+
+                try {
+                    const savedLocal = localStorage.getItem('rcv_hoa12_local_' + roomCode);
+                    if (savedLocal) {
+                        setCloudState(JSON.parse(savedLocal));
+                    }
+                } catch (e) {}
+
+                return () => {
+                    window.removeEventListener('storage', handleStorage);
+                    if (broadcastChannelRef.current) {
+                        try { broadcastChannelRef.current.close(); } catch (e) {}
+                        broadcastChannelRef.current = null;
+                    }
+                };
+            }, [roomCode]);
+
+            // Khởi tạo kết nối đồng bộ thời gian thực giữa Máy tính Giáo viên & Điện thoại Học sinh qua Firestore
+            useEffect(() => {
+                let unsubscribe = null;
+                const initFirebase = async () => {
+                    try {
+                        if (!window.FB || typeof __firebase_config === 'undefined') {
+                            setStudentPeerStatus('connected');
+                            return;
+                        }
+                        const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, doc, setDoc, getDoc, onSnapshot } = window.FB;
+                        const firebaseConfig = JSON.parse(__firebase_config);
+                        const app = initializeApp(firebaseConfig);
+                        const auth = getAuth(app);
+                        const db = getFirestore(app);
+                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+
+                        const currUser = auth.currentUser;
+                        if (!currUser) return;
+                        setUser(currUser);
+                        const roomDoc = doc(db, 'artifacts', appId, 'public', 'data', 'rungchuongvang_rooms', 'room_hoa12_' + roomCode);
+                        setDbRef(roomDoc);
+
+                        const snap = await getDoc(roomDoc);
+                        if (!snap.exists()) {
+                            await setDoc(roomDoc, cloudStateRef.current || DEFAULT_STATE);
+                        }
+
+                        setStudentPeerStatus('connected');
+
+                        unsubscribe = onSnapshot(roomDoc, (docSnap) => {
+                            if (docSnap.exists()) {
+                                setCloudState(docSnap.data());
+                                setStudentPeerStatus('connected');
+                            }
+                        }, (err) => {
+                            console.error("Sync error:", err);
+                            setStudentPeerStatus('error');
+                        });
+                    } catch (e) {
+                        console.error("Offline mode fallback:", e);
+                        setStudentPeerStatus('connected');
+                    }
+                };
+                initFirebase();
+                return () => { if (unsubscribe) unsubscribe(); };
+            }, [roomCode]);
+
+            // Cập nhật trạng thái chung và phát sóng tới tất cả điện thoại Học sinh
+            const updateGameState = async (newStatePartial) => {
+                setCloudState(prev => {
+                    const updated = { ...prev, ...newStatePartial };
+                    cloudStateRef.current = updated;
+
+                    // Đồng bộ qua BroadcastChannel & localStorage
+                    if (broadcastChannelRef.current) {
+                        try {
+                            broadcastChannelRef.current.postMessage({ type: 'SYNC_STATE', state: updated });
+                        } catch (e) {}
+                    }
+                    try {
+                        localStorage.setItem('rcv_hoa12_local_' + roomCode, JSON.stringify(updated));
+                    } catch (e) {}
+
+                    // Lưu đồng bộ lên Cloud Firestore
+                    if (dbRef && user && window.FB) {
+                        window.FB.setDoc(dbRef, newStatePartial, { merge: true }).catch(err => console.error("Update error:", err));
+                    }
+                    return updated;
+                });
+            };
+
+            // Đồng hồ đếm ngược của Giáo viên
+            useEffect(() => {
+                if (role !== 'teacher') return;
+                let timer;
+                if (cloudState.gameState === 'running' && cloudState.timeLeft > 0) {
+                    timer = setInterval(() => {
+                        updateGameState({ timeLeft: Math.max(0, cloudState.timeLeft - 1) });
+                    }, 1000);
+                }
+                return () => clearInterval(timer);
+            }, [cloudState.gameState, cloudState.timeLeft, role]);
+
+            // Reset lựa chọn của học sinh khi sang câu hỏi mới
+            useEffect(() => {
+                setMyAnswer("");
+            }, [cloudState.currentQ]);
+
+            // Kiểm tra học sinh trả lời Đúng hay Sai ở câu hiện tại
+            const isStudentCorrect = (studentId) => {
+                if (cloudState.evalOverrides && cloudState.evalOverrides[studentId] !== undefined) {
+                    return cloudState.evalOverrides[studentId];
+                }
+                const ans = (cloudState.answers && cloudState.answers[studentId]) || "";
+                return checkAnswerCorrect(ans, QUESTIONS[cloudState.currentQ || 0]);
+            };
+
+            // Giáo viên khởi tạo danh sách lớp
+            const handleStartSetup = () => {
+                const names = studentInput.split('\n').map(n => n.trim()).filter(n => n !== "");
+                if (names.length === 0) return;
+                const initialStudents = names.map((name, i) => ({
+                    id: 'hs_' + (i + 1),
+                    num: i + 1,
+                    name: name,
+                    active: true,
+                    score: 0,
+                    joined: false
+                }));
+                updateGameState({
+                    isSetup: false,
+                    currentQ: 0,
+                    gameState: 'ready',
+                    timeLeft: TIME_LIMIT,
+                    students: initialStudents,
+                    answers: {},
+                    evalOverrides: {}
+                });
+            };
+
+            // Học sinh chạm vào tên mình để đăng nhập nhanh trên điện thoại
+            const loginWithStudentObj = async (found) => {
+                setLoginError("");
+                setCurrentStudentId(found.id);
+                setRole('student_play');
+
+                const updatedStudents = (cloudState.students || []).map(s => 
+                    s.id === found.id ? { ...s, joined: true } : s
+                );
+                updateGameState({ students: updatedStudents });
+            };
+
+            const handleStudentLogin = (e) => {
+                e.preventDefault();
+                setLoginError("");
+                if (cloudState.isSetup || !cloudState.students || cloudState.students.length === 0) {
+                    setLoginError("Giáo viên đang chuẩn bị danh sách lớp! Em vui lòng đợi giây lát nhé.");
+                    return;
+                }
+                const cleanInput = normalizeText(loginName);
+                const found = cloudState.students.find(s => normalizeText(s.name) === cleanInput);
+                if (!found) {
+                    setLoginError("Chưa khớp tên! Em hãy chạm trực tiếp vào tên của mình ở danh sách bên dưới nhé.");
+                    return;
+                }
+                loginWithStudentObj(found);
+            };
+
+            // Học sinh chọn đáp án A/B/C/D hoặc gửi đáp án trên điện thoại
+            const submitStudentChoice = async (choiceValue) => {
+                if (!currentStudentId || cloudState.gameState !== 'running' || cloudState.timeLeft === 0) return;
+                const trimmed = choiceValue.toString().trim().toUpperCase();
+                if (!trimmed) return;
+                setMyAnswer(trimmed);
+
+                const newAnswers = { ...(cloudStateRef.current.answers || {}), [currentStudentId]: trimmed };
+                updateGameState({ answers: newAnswers });
+
+                if (dbRef && user && window.FB) {
+                    try {
+                        await window.FB.updateDoc(dbRef, {
+                            [`answers.${currentStudentId}`]: trimmed
+                        });
+                    } catch (err) {}
+                }
+            };
+
+            const handleStudentSubmitForm = (e) => {
+                e.preventDefault();
+                submitStudentChoice(myAnswer);
+            };
+
+            // Giáo viên: 1. Bắt đầu câu hỏi
+            const startQuestion = () => {
+                updateGameState({
+                    gameState: 'running',
+                    timeLeft: TIME_LIMIT,
+                    answers: {},
+                    evalOverrides: {}
+                });
+            };
+
+            // Giáo viên: 2. Chốt câu & Chấm đáp án tự động (+10 điểm cho HS trên sàn trả lời đúng)
+            const lockAnswer = () => {
+                const updatedStudents = (cloudState.students || []).map(s => {
+                    if (!s.active) return s;
+                    const correct = isStudentCorrect(s.id);
+                    return correct ? { ...s, score: s.score + 10 } : s;
+                });
+                updateGameState({
+                    gameState: 'locked',
+                    students: updatedStudents
+                });
+            };
+
+            // Giáo viên: 3. Xóa tên (Loại) những học sinh trả lời sai ở câu hiện tại
+            const eliminateWrongStudents = () => {
+                const updatedStudents = (cloudState.students || []).map(s => {
+                    if (!s.active) return s;
+                    const correct = isStudentCorrect(s.id);
+                    return correct ? s : { ...s, active: false };
+                });
+                updateGameState({ students: updatedStudents });
+            };
+
+            // Giáo viên: 4. Qua câu hỏi tiếp theo
+            const nextQuestion = () => {
+                if (cloudState.currentQ < QUESTIONS.length - 1) {
+                    updateGameState({
+                        currentQ: cloudState.currentQ + 1,
+                        gameState: 'ready',
+                        timeLeft: TIME_LIMIT,
+                        answers: {},
+                        evalOverrides: {}
+                    });
+                }
+            };
+
+            // Giáo viên: Nhấp vào ô học sinh để chấm lại Đúng/Sai hoặc Loại/Khôi phục
+            const handleTeacherClickStudent = (student) => {
+                if (cloudState.gameState === 'locked' && student.active) {
+                    const currentCorrect = isStudentCorrect(student.id);
+                    const nextCorrect = !currentCorrect;
+                    const newOverrides = { ...(cloudState.evalOverrides || {}), [student.id]: nextCorrect };
+                    const scoreDiff = nextCorrect ? 10 : -10;
+                    const updatedStudents = cloudState.students.map(s => 
+                        s.id === student.id ? { ...s, score: Math.max(0, s.score + scoreDiff) } : s
+                    );
+                    updateGameState({
+                        evalOverrides: newOverrides,
+                        students: updatedStudents
+                    });
+                } else {
+                    const updatedStudents = cloudState.students.map(s => 
+                        s.id === student.id ? { ...s, active: !s.active } : s
+                    );
+                    updateGameState({ students: updatedStudents });
+                }
+            };
+
+            // Cứu trợ toàn bộ học sinh trở lại sàn
+            const rescueAll = () => {
+                const rescues = cloudState.rescuesLeft !== undefined ? cloudState.rescuesLeft : 2;
+                if (rescues <= 0) return;
+                const updatedStudents = (cloudState.students || []).map(s => ({ ...s, active: true }));
+                updateGameState({
+                    students: updatedStudents,
+                    rescuesLeft: Math.max(0, rescues - 1)
+                });
+            };
+
+            // Phao máy bay giấy: cứu ngẫu nhiên 1 học sinh đã bị loại trở lại sàn
+            const usePaperPlane = () => {
+                const planes = cloudState.paperPlaneLeft !== undefined ? cloudState.paperPlaneLeft : 1;
+                const eliminated = (cloudState.students || []).filter(s => !s.active);
+                if (planes <= 0 || eliminated.length === 0) return;
+                const luckyStudent = eliminated[Math.floor(Math.random() * eliminated.length)];
+                const updatedStudents = (cloudState.students || []).map(s =>
+                    s.id === luckyStudent.id ? { ...s, active: true } : s
+                );
+                updateGameState({
+                    students: updatedStudents,
+                    paperPlaneLeft: 0
+                });
+            };
+
+            // Tạo đường dẫn chuẩn https:// cho Mã QR
+            const getStudentJoinUrl = () => {
+                let base = customPublicUrl.trim();
+                if (!base) {
+                    const href = window.location.href;
+                    if (href.startsWith('http://') || href.startsWith('https://')) {
+                        base = href.split('?')[0];
+                    }
+                }
+                if (!base) return "";
+                const sep = base.includes('?') ? '&' : '?';
+                return `${base}${sep}mode=student&room=${roomCode}`;
+            };
+
+            const studentJoinUrl = getStudentJoinUrl();
+            const isValidWebUrl = studentJoinUrl.startsWith('http://') || studentJoinUrl.startsWith('https://');
+
+            const students = cloudState.students || [];
+            const activeCount = students.filter(s => s.active).length;
+            const currentQ = cloudState.currentQ || 0;
+            const currentQuestionObj = QUESTIONS[currentQ] || QUESTIONS[0];
+            const gameState = cloudState.gameState || 'ready';
+            const timeLeft = cloudState.timeLeft !== undefined ? cloudState.timeLeft : TIME_LIMIT;
+            const answers = cloudState.answers || {};
+
+            const activeCorrectCount = students.filter(s => s.active && isStudentCorrect(s.id)).length;
+            const activeWrongCount = students.filter(s => s.active && !isStudentCorrect(s.id)).length;
+            const answeredCount = students.filter(s => s.active && answers[s.id]).length;
+
+            // =========================================================================
+            // 1. MÀN HÌNH CHỌN VAI TRÒ (GIÁO VIÊN TRÊN MÁY TÍNH / HỌC SINH TRÊN ĐT)
+            // =========================================================================
+            if (role === 'select') {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <div className="bg-[#0b132c] p-6 sm:p-10 rounded-3xl border border-blue-800/70 shadow-2xl max-w-2xl w-full text-center animate-fade-in">
+                            <div className="text-6xl mb-3 animate-bounce">🔔</div>
+                            <h1 className="text-3xl sm:text-4xl font-black text-yellow-400 tracking-wide mb-2">
+                                RUNG CHUÔNG VÀNG
+                            </h1>
+                            <p className="text-sky-300 font-bold text-sm sm:text-base mb-8">
+                                Hóa Học 12 (Kết nối tri thức) • Chương 3: Hợp Chất Chứa Nitrogen (12 Câu Trắc Nghiệm)
+                            </p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <button
+                                    onClick={() => setRole('teacher')}
+                                    className="p-6 bg-gradient-to-br from-blue-900/80 to-slate-900 hover:from-blue-800 hover:to-slate-800 border-2 border-sky-500/70 rounded-2xl flex flex-col items-center gap-3 transition-all hover:scale-[1.02] shadow-lg"
+                                >
+                                    <span className="text-5xl">💻</span>
+                                    <div className="font-black text-xl text-white">KHU VỰC GIÁO VIÊN</div>
+                                    <p className="text-xs text-gray-300 leading-relaxed">
+                                        Mở trên máy tính / máy chiếu để nhập danh sách lớp, lấy Mã QR cho học sinh và điều khiển 12 câu hỏi
+                                    </p>
+                                    <span className="mt-1 px-4 py-1.5 bg-sky-500 text-white text-xs font-black rounded-full">
+                                        Vào Bảng Điều Khiển →
+                                    </span>
+                                </button>
+
+                                <button
+                                    onClick={() => setRole('student_login')}
+                                    className="p-6 bg-gradient-to-br from-emerald-950/80 to-slate-900 hover:from-emerald-900 hover:to-slate-800 border-2 border-emerald-500/70 rounded-2xl flex flex-col items-center gap-3 transition-all hover:scale-[1.02] shadow-lg"
+                                >
+                                    <span className="text-5xl">📱</span>
+                                    <div className="font-black text-xl text-yellow-400">ĐIỆN THOẠI HỌC SINH</div>
+                                    <p className="text-xs text-gray-300 leading-relaxed">
+                                        Chạm chọn tên trong danh sách lớp, chọn đáp án A/B/C/D và xem trực tiếp điểm số, trạng thái trên sàn
+                                    </p>
+                                    <span className="mt-1 px-4 py-1.5 bg-emerald-500 text-white text-xs font-black rounded-full">
+                                        Vào Phòng Thi Đấu →
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // =========================================================================
+            // 2. MÀN HÌNH HỌC SINH CHỌN TÊN ĐĂNG NHẬP TRÊN ĐIỆN THOẠI
+            // =========================================================================
+            if (role === 'student_login') {
+                const filteredStudents = students.filter(s => 
+                    normalizeText(s.name).includes(normalizeText(loginName))
+                );
+
+                return (
+                    <div className="min-h-screen flex flex-col justify-between p-3 sm:p-6 max-w-md mx-auto w-full">
+                        <div className="bg-[#0b132c] p-5 sm:p-6 rounded-3xl border border-blue-800/70 shadow-2xl w-full my-auto animate-fade-in">
+                            <div className="flex justify-between items-center mb-4">
+                                <button onClick={() => setRole('select')} className="text-xs text-gray-300 hover:text-white flex items-center gap-1 bg-slate-800 px-3 py-2 rounded-xl font-bold active:scale-95">
+                                    ← Đổi vai trò
+                                </button>
+                                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-600/50 px-3 py-1 rounded-full flex items-center gap-1.5">
+                                    <span className={`w-2 h-2 rounded-full ${studentPeerStatus === 'connected' ? 'bg-emerald-400 animate-ping' : 'bg-yellow-400'}`}></span>
+                                    Phòng: {roomCode}
+                                </span>
+                            </div>
+
+                            <div className="text-center mb-4">
+                                <div className="text-4xl mb-1">🔔</div>
+                                <h1 className="text-xl sm:text-2xl font-black text-yellow-400 tracking-wide">PHÒNG THI ĐIỆN THOẠI</h1>
+                                <p className="text-sky-300 text-xs mt-1 font-medium">Chạm trực tiếp vào tên của em trong danh sách lớp bên dưới</p>
+                            </div>
+
+                            {/* Ô nhập Mã Phòng 6 số nếu học sinh mở link chung */}
+                            <div className="bg-slate-900/90 p-3 rounded-2xl border border-blue-800/60 mb-3 flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-gray-300 shrink-0">🔑 Mã phòng của GV:</span>
+                                <input
+                                    type="text"
+                                    value={inputRoomCode}
+                                    onChange={(e) => setInputRoomCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    placeholder="Nhập 6 số..."
+                                    className="w-28 px-3 py-1.5 bg-slate-800 border border-sky-500/50 rounded-xl text-yellow-400 font-black text-center text-sm tracking-widest focus:outline-none"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setRoomCode(inputRoomCode)}
+                                    className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-black rounded-xl shrink-0"
+                                >
+                                    Kết nối
+                                </button>
+                            </div>
+
+                            {(cloudState.isSetup || students.length === 0) ? (
+                                <div className="p-6 bg-slate-900/90 border-2 border-dashed border-sky-500/50 rounded-2xl text-center space-y-3 my-4">
+                                    <div className="text-4xl animate-spin inline-block">⏳</div>
+                                    <div className="font-bold text-sky-300 text-base">Đang kết nối danh sách lớp (Mã phòng: {roomCode})...</div>
+                                    <p className="text-xs text-gray-400 leading-relaxed">
+                                        Hãy chắc chắn <strong>Mã phòng 6 số</strong> ở trên khớp với Mã phòng trên màn hình máy chiếu của Giáo viên và Giáo viên đã bấm <strong className="text-yellow-400">"Khởi tạo Sàn Thi Đấu"</strong>.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-blue-800/60">
+                                        <input 
+                                            type="text"
+                                            value={loginName}
+                                            onChange={(e) => setLoginName(e.target.value)}
+                                            placeholder="🔍 Gõ tên em để tìm nhanh..."
+                                            className="w-full p-3 mb-3 bg-slate-800 border border-blue-600/60 rounded-xl text-white text-sm font-semibold focus:outline-none focus:border-yellow-400"
+                                        />
+
+                                        <div className="text-xs font-black text-yellow-400 uppercase mb-2 flex justify-between items-center">
+                                            <span>👇 Chạm vào tên của em ({filteredStudents.length} HS):</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto custom-scroll pr-1">
+                                            {filteredStudents.map(s => (
+                                                <button 
+                                                    key={s.id}
+                                                    type="button"
+                                                    onClick={() => loginWithStudentObj(s)}
+                                                    className="w-full p-3 bg-slate-800/95 hover:bg-sky-600 active:bg-sky-500 border border-blue-700/50 rounded-xl flex items-center justify-between text-left transition-all active:scale-[0.98]"
+                                                >
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <span className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/40 text-sky-300 font-black text-xs flex items-center justify-center shrink-0">
+                                                            #{s.num}
+                                                        </span>
+                                                        <div className="min-w-0">
+                                                            <div className="font-bold text-white text-sm truncate">{s.name}</div>
+                                                            <div className="text-[11px] text-gray-400">
+                                                                {s.active ? `Đang trên sàn • ${s.score} điểm` : `Đã bị loại • ${s.score} điểm`}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-xs font-black px-3 py-1.5 rounded-lg bg-emerald-500 text-white shrink-0 shadow">
+                                                        Vào thi →
+                                                    </span>
+                                                </button>
+                                            ))}
+                                            {filteredStudents.length === 0 && (
+                                                <div className="text-center text-xs text-gray-400 py-4">
+                                                    Không tìm thấy tên "{loginName}". Em hãy xóa bớt chữ để xem toàn bộ danh sách nhé!
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {loginError && (
+                                        <div className="p-3 bg-red-900/50 border border-red-500/60 rounded-xl text-red-300 text-xs font-medium">
+                                            ⚠️ {loginError}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            // =========================================================================
+            // 3. MÀN HÌNH HỌC SINH CHƠI TRÊN ĐIỆN THOẠI (TRẮC NGHIỆM A/B/C/D SIÊU MƯỢT)
+            // =========================================================================
+            if (role === 'student_play') {
+                const me = students.find(s => s.id === currentStudentId);
+                if (!me) {
+                    return (
+                        <div className="min-h-screen flex items-center justify-center p-4">
+                            <div className="bg-[#0b132c] p-6 rounded-2xl border border-blue-800 text-center max-w-sm w-full">
+                                <div className="text-4xl mb-3">🔄</div>
+                                <p className="text-gray-200 font-bold mb-4">Giáo viên vừa cập nhật lại danh sách lớp trên máy tính.</p>
+                                <button onClick={() => setRole('student_login')} className="w-full py-3 bg-sky-500 rounded-xl font-black text-white">Chọn lại tên của em</button>
+                            </div>
+                        </div>
+                    );
+                }
+
+                const mySavedAns = answers[me.id] || "";
+                const amICorrect = isStudentCorrect(me.id);
+
+                return (
+                    <div className="min-h-screen flex flex-col p-3 sm:p-4 max-w-lg mx-auto w-full">
+                        {/* Thanh trạng thái Học sinh: Hiển thị rõ Tên, Điểm số và Trạng thái Đang trên sàn / Đã bị loại */}
+                        <div className="bg-[#0b132c] p-3.5 rounded-2xl border border-blue-800/70 mb-3 shadow-lg shrink-0">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center font-black text-white text-sm shrink-0 shadow">
+                                        #{me.num}
+                                    </span>
+                                    <div className="min-w-0">
+                                        <div className="font-black text-white text-base truncate">{me.name}</div>
+                                        <div className="mt-0.5 flex items-center gap-2">
+                                            {me.active ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                                    ĐANG TRÊN SÀN
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                                    ✖ ĐÃ BỊ LOẠI
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <div className="px-3.5 py-1.5 bg-yellow-500/20 border-2 border-yellow-400 rounded-xl text-center">
+                                        <div className="text-[10px] text-yellow-200 font-bold uppercase leading-none">Điểm số</div>
+                                        <div className="text-yellow-400 font-black text-lg leading-tight">{me.score}đ</div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setRole('student_login')}
+                                        className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-gray-300 text-xs font-bold rounded-xl"
+                                    >
+                                        Đổi tên
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Khu vực Câu hỏi & 4 nút lựa chọn A, B, C, D */}
+                        <div className="bg-[#0b132c] rounded-3xl p-4 sm:p-5 border border-blue-800/70 shadow-2xl flex-1 flex flex-col justify-between">
+                            {/* Thanh số câu & Đồng hồ */}
+                            <div className="flex justify-between items-center border-b border-blue-900/60 pb-3 mb-3">
+                                <span className="px-3.5 py-1 bg-blue-900/60 border border-sky-500/40 rounded-full text-sky-300 font-black text-xs sm:text-sm">
+                                    CÂU {currentQ + 1} / {QUESTIONS.length}
+                                </span>
+                                <div className={`px-4 py-1 rounded-full font-black text-base sm:text-lg flex items-center gap-1.5 ${timeLeft <= 5 && gameState === 'running' ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-yellow-400 border border-yellow-500/30'}`}>
+                                    <span>⏱</span> {timeLeft} giây
+                                </div>
+                            </div>
+
+                            {gameState === 'ready' ? (
+                                <div className="my-auto text-center py-8 animate-fade-in">
+                                    <div className="text-6xl mb-4 animate-bounce">🔔</div>
+                                    <h2 className="text-xl sm:text-2xl font-black text-white mb-2">Chuẩn bị Câu số {currentQ + 1}</h2>
+                                    <p className="text-sky-300 text-xs sm:text-sm px-3 leading-relaxed">
+                                        Ngay khi Giáo viên bấm <strong>"Bắt đầu Câu {currentQ + 1}"</strong>, câu hỏi và 4 đáp án <strong>A, B, C, D</strong> sẽ hiện lên màn hình điện thoại của em!
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="my-auto space-y-3.5 animate-fade-in">
+                                    {/* Nội dung câu hỏi */}
+                                    <div className="bg-slate-900/95 p-4 rounded-2xl border border-blue-800/70 shadow-inner">
+                                        <div className="text-[11px] text-yellow-400 font-black uppercase mb-1">
+                                            {currentQ === QUESTIONS.length - 1 ? '🔔 CÂU CHUÔNG VÀNG QUYẾT ĐỊNH:' : `Câu hỏi số ${currentQ + 1}:`}
+                                        </div>
+                                        <h2 className="text-base sm:text-lg font-bold text-white leading-snug">
+                                            {currentQuestionObj.q}
+                                        </h2>
+                                    </div>
+
+                                    {/* Nếu học sinh đã bị loại */}
+                                    {!me.active ? (
+                                        <div className="p-5 bg-rose-950/40 border-2 border-rose-500/50 rounded-2xl text-center space-y-2">
+                                            <div className="text-4xl">🚁</div>
+                                            <div className="font-black text-rose-300 text-base">EM ĐÃ RỜI SÀN THI ĐẤU!</div>
+                                            <div className="text-xs text-gray-300 leading-relaxed">
+                                                Điểm bảo toàn của em là <strong className="text-yellow-400">{me.score} điểm</strong>. Hãy chờ Giáo viên bấm <strong>"Cứu trợ"</strong> để quay trở lại sàn thi đấu nhé!
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="text-xs font-black text-sky-300 uppercase tracking-wider flex justify-between items-center">
+                                                <span>👇 Chạm chọn đáp án đúng (A, B, C hoặc D):</span>
+                                                {mySavedAns && (
+                                                    <span className="text-emerald-400 font-black">Đã chọn: {mySavedAns}</span>
+                                                )}
+                                            </div>
+
+                                            {/* 4 nút Trắc nghiệm A, B, C, D lớn, dễ bấm trên điện thoại */}
+                                            <div className="grid grid-cols-1 gap-2.5">
+                                                {['A', 'B', 'C', 'D'].map((letter) => {
+                                                    const isSelected = normalizeText(mySavedAns) === normalizeText(letter);
+                                                    const isCorrectLetter = currentQuestionObj.correct === letter;
+
+                                                    let btnClass = "bg-slate-800/95 border-blue-700/60 text-white hover:bg-slate-700";
+                                                    if (gameState === 'locked') {
+                                                        if (isCorrectLetter) {
+                                                            btnClass = "bg-sky-500 border-sky-200 text-white shadow-[0_0_15px_rgba(56,189,248,0.5)]";
+                                                        } else if (isSelected && !isCorrectLetter) {
+                                                            btnClass = "bg-slate-700 border-slate-500 text-gray-300 opacity-75 line-through";
+                                                        } else {
+                                                            btnClass = "bg-slate-900/60 border-slate-800 text-gray-500 opacity-60";
+                                                        }
+                                                    } else if (isSelected) {
+                                                        btnClass = "bg-yellow-400 border-white text-black shadow-[0_0_15px_rgba(250,204,21,0.5)] scale-[1.01]";
+                                                    }
+
+                                                    return (
+                                                        <button
+                                                            key={letter}
+                                                            type="button"
+                                                            disabled={gameState !== 'running' || timeLeft === 0}
+                                                            onClick={() => submitStudentChoice(letter)}
+                                                            className={`student-btn w-full p-3.5 rounded-2xl border-2 flex items-center gap-3 text-left font-bold transition-all disabled:cursor-not-allowed ${btnClass}`}
+                                                        >
+                                                            <span className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-base shrink-0 ${
+                                                                isSelected && gameState !== 'locked'
+                                                                    ? 'bg-black text-yellow-400'
+                                                                    : (gameState === 'locked' && isCorrectLetter ? 'bg-white text-sky-600' : 'bg-sky-500/20 text-sky-300 border border-sky-400/30')
+                                                            }`}>
+                                                                {letter}
+                                                            </span>
+                                                            <span className="text-sm sm:text-base flex-1 leading-snug">
+                                                                {currentQuestionObj.options[letter]}
+                                                            </span>
+                                                            {isSelected && (
+                                                                <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-black/20 shrink-0">
+                                                                    ✓ Đã chọn
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Trạng thái đã gửi lên máy Giáo viên */}
+                                            {mySavedAns && gameState === 'running' && (
+                                                <div className="p-3 bg-emerald-950/70 border border-emerald-500/60 rounded-xl flex justify-between items-center animate-fade-in">
+                                                    <span className="text-xs text-emerald-300 font-bold">✓ Đã gửi lên máy Giáo viên:</span>
+                                                    <span className="font-black text-white text-sm bg-emerald-600 px-3 py-1 rounded-lg">
+                                                        Đáp án {mySavedAns}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Hiển thị Kết quả Đúng / Sai sau khi Giáo viên chốt câu */}
+                                    {gameState === 'locked' && (
+                                        <div className={`p-4 rounded-2xl border-2 animate-fade-in ${amICorrect ? 'bg-sky-900/60 border-sky-400' : 'bg-slate-800/95 border-slate-600'}`}>
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-xs font-bold text-yellow-300 uppercase">Kết quả Câu {currentQ + 1}:</span>
+                                                    {me.active && (
+                                                        <span className={`px-3 py-1 rounded-lg text-xs font-black ${amICorrect ? 'bg-sky-500 text-white' : 'bg-rose-600 text-white'}`}>
+                                                            {amICorrect ? '🎉 CHÍNH XÁC (+10 ĐIỂM)' : '❌ TRẢ LỜI SAI'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-sm font-bold text-green-400">
+                                                    ✓ Đáp án đúng: <span className="text-white">{currentQuestionObj.a}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="text-center text-[11px] text-gray-500 pt-3 mt-3 border-t border-slate-800/80">
+                                Đồng bộ thời gian thực • Rung Chuông Vàng Hóa Học 12
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // =========================================================================
+            // 4. MÀN HÌNH GIÁO VIÊN NHẬP DANH SÁCH HỌC SINH
+            // =========================================================================
+            if (cloudState.isSetup) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <div className="bg-[#0b132c] p-6 sm:p-8 rounded-3xl border border-blue-800/60 shadow-2xl w-full max-w-2xl text-center animate-fade-in">
+                            <div className="flex justify-between items-center mb-2">
+                                <button onClick={() => setRole('select')} className="text-xs text-gray-300 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg font-bold">
+                                    ← Chọn vai trò
+                                </button>
+                                <span className="text-xs text-yellow-400 font-bold uppercase">Khu vực Giáo Viên • Hóa 12 Chương 3</span>
+                            </div>
+                            <div className="text-5xl mb-2">🔔</div>
+                            <h1 className="text-2xl sm:text-3xl font-black text-sky-400 mb-1 drop-shadow-md">NHẬP DANH SÁCH HỌC SINH LỚP 12</h1>
+                            <p className="text-xs text-gray-300 mb-5">
+                                Ngay khi khởi tạo, danh sách này sẽ đồng bộ sang điện thoại để học sinh quét QR và chạm chọn tên vào thi
+                            </p>
+                            
+                            <div className="text-left mb-6">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="text-gray-200 font-bold text-sm">Danh sách học sinh (Mỗi dòng 1 họ tên):</label>
+                                    <span className="text-xs font-bold text-sky-400">
+                                        Tổng số: {studentInput.split('\n').filter(n => n.trim() !== "").length} học sinh
+                                    </span>
+                                </div>
+                                <textarea 
+                                    className="w-full h-56 p-4 bg-slate-800/90 border border-blue-700/60 rounded-2xl text-white focus:outline-none focus:border-sky-400 custom-scroll shadow-inner font-medium text-sm leading-relaxed"
+                                    placeholder="Nguyễn Văn An&#10;Trần Thị Bình&#10;..."
+                                    value={studentInput}
+                                    onChange={(e) => setStudentInput(e.target.value)}
+                                ></textarea>
+                            </div>
+                            <button 
+                                onClick={handleStartSetup}
+                                disabled={!studentInput.trim()}
+                                className="px-10 py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-base sm:text-lg font-black rounded-full transition-all duration-300 disabled:opacity-50 shadow-[0_0_20px_rgba(56,189,248,0.4)] hover:scale-105"
+                            >
+                                🚀 Khởi tạo Sàn Thi Đấu ({studentInput.split('\n').filter(n => n.trim() !== "").length} HS)
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // =========================================================================
+            // 5. MÀN HÌNH ĐIỀU KHIỂN CHÍNH CỦA GIÁO VIÊN TRÊN MÁY TÍNH
+            // =========================================================================
+            return (
+                <div className="min-h-screen flex flex-col p-3 sm:p-4 max-w-[1600px] mx-auto w-full relative">
+                    {/* Header Giáo viên */}
+                    <div className="flex flex-wrap justify-between items-center mb-3 border-b border-blue-800/50 pb-2.5 shrink-0 gap-2">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <div className="text-3xl">🔔</div>
+                            <h1 className="text-xl sm:text-2xl font-black text-yellow-400 tracking-wide drop-shadow-md">RUNG CHUÔNG VÀNG</h1>
+                            <div className="px-3 py-1 bg-[#0f172a] border border-blue-800 rounded-full text-xs text-sky-300 font-bold hidden xl:block">
+                                Hóa 12 • Chương 3: Hợp Chất Chứa Nitrogen
+                            </div>
+                            <button 
+                                onClick={() => updateGameState({ isSetup: true })}
+                                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-full text-xs text-sky-300 font-bold transition-colors"
+                            >
+                                ✎ Danh sách lớp ({students.length} HS)
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <button 
+                                onClick={() => setShowQrModal(true)}
+                                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full text-xs font-black shadow-[0_0_15px_rgba(16,185,129,0.5)] flex items-center gap-1.5 transition-all animate-pulse"
+                            >
+                                <span>📲</span> Mã QR Cho Học Sinh Quét Vào Chơi
+                            </button>
+                            <button 
+                                onClick={() => setPreviewStudentMode(!previewStudentMode)}
+                                className="px-3 py-1.5 bg-sky-600/30 hover:bg-sky-600/50 border border-sky-400/50 rounded-full text-xs text-sky-300 font-bold transition-all"
+                            >
+                                {previewStudentMode ? 'Đóng khung thử nghiệm' : '📱 Thử nghiệm HS chọn A/B/C/D'}
+                            </button>
+                            <button 
+                                onClick={() => setRole('student_login')}
+                                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-xs text-gray-300 font-bold"
+                            >
+                                Giao diện ĐT Học sinh
+                            </button>
+                            <div className="px-4 py-1.5 border-2 border-yellow-500 bg-yellow-500/10 rounded-full text-yellow-400 text-xs sm:text-sm font-black tracking-widest">
+                                CÂU {currentQ + 1} / {QUESTIONS.length}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Modal Mã QR lớn cho học sinh quét vào chơi trên điện thoại */}
+                    {showQrModal && (
+                        <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
+                            <div className="bg-[#0b132c] border-2 border-sky-400 rounded-3xl p-5 sm:p-6 max-w-xl w-full text-center shadow-2xl relative my-auto">
+                                <button 
+                                    onClick={() => setShowQrModal(false)}
+                                    className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-800 hover:bg-rose-600 text-white font-bold"
+                                >
+                                    ✕
+                                </button>
+                                <div className="inline-flex items-center gap-2 px-4 py-1 bg-yellow-400/15 border border-yellow-400/50 rounded-full text-yellow-300 text-xs font-black mb-2">
+                                    <span>🔑 MÃ PHÒNG TRỰC TUYẾN:</span>
+                                    <span className="text-base text-yellow-400 tracking-widest">{roomCode}</span>
+                                </div>
+                                <h2 className="text-xl sm:text-2xl font-black text-white mb-1">QUÉT MÃ QR VÀO PHÒNG ĐIỆN THOẠI</h2>
+                                <p className="text-xs text-sky-300 mb-3">
+                                    Học sinh dùng Camera điện thoại hoặc Zalo quét mã QR dưới đây để mở thẳng trang làm bài!
+                                </p>
+
+                                {/* Ô cấu hình Link Web thực tế để đảm bảo QR luôn quét ra link web mở được ngay */}
+                                <div className="bg-slate-900/95 p-3.5 rounded-2xl border border-amber-500/60 text-left mb-4">
+                                    <label className="block text-xs font-black text-amber-300 mb-1">
+                                        🌐 Đường dẫn Web của trò chơi (Bắt buộc có https:// để ĐT mở được):
+                                    </label>
+                                    <input
+                                        type="url"
+                                        value={customPublicUrl}
+                                        onChange={(e) => setCustomPublicUrl(e.target.value)}
+                                        placeholder="Dán link chia sẻ (https://...) của trang web vào đây..."
+                                        className="w-full px-3 py-2 bg-slate-800 border border-blue-600 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-yellow-400"
+                                    />
+                                    {!isValidWebUrl ? (
+                                        <div className="mt-2 text-[11px] text-amber-200 bg-amber-950/70 p-2.5 rounded-xl border border-amber-600/50 leading-relaxed">
+                                            ⚠️ <strong>Lưu ý quan trọng:</strong> Hiện bạn đang mở trò chơi trong khung xem trước nội bộ nên chưa có địa chỉ <code>https://</code>. Để điện thoại quét QR mở được ngay mà <strong>không bị hiện chữ "Sao chép"</strong>:
+                                            <ol className="list-decimal list-inside mt-1 space-y-0.5 text-gray-200">
+                                                <li>Bấm nút <strong>Chia sẻ (Share / Xuất bản)</strong> ở góc trên màn hình để lấy link công khai (hoặc tải file HTML lên <em>tiiny.host / github / netlify</em>).</li>
+                                                <li>Dán đường link <code>https://...</code> đó vào ô trên — Mã QR bên dưới sẽ lập tức cập nhật để cả lớp quét vào chơi!</li>
+                                            </ol>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-1.5 text-[11px] text-emerald-400 font-bold">
+                                            ✓ Đường dẫn hợp lệ! Học sinh quét mã QR bên dưới sẽ bấm "Mở trang web" vào thẳng phòng thi.
+                                        </div>
+                                    )}
+                                </div>
+
+                                {isValidWebUrl ? (
+                                    <div className="bg-white p-4 rounded-2xl inline-block mb-4 shadow-xl">
+                                        <img 
+                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(studentJoinUrl)}`}
+                                            alt="QR Code tham gia"
+                                            className="w-48 h-48 sm:w-52 sm:h-52 mx-auto"
+                                        />
+                                        <div className="text-[11px] font-black text-slate-800 mt-2">
+                                            Mã phòng: <span className="text-blue-700">{roomCode}</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-6 bg-slate-900 border-2 border-dashed border-slate-700 rounded-2xl mb-4 text-gray-400 text-xs">
+                                        <div className="text-3xl mb-2">🔗</div>
+                                        Hãy dán đường dẫn <strong>https://...</strong> vào ô bên trên để hiển thị Mã QR chuẩn cho điện thoại.
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            if (!isValidWebUrl) return;
+                                            const input = document.createElement('input');
+                                            input.value = studentJoinUrl;
+                                            document.body.appendChild(input);
+                                            input.select();
+                                            document.execCommand('copy');
+                                            document.body.removeChild(input);
+                                            setCopySuccess(true);
+                                            setTimeout(() => setCopySuccess(false), 2500);
+                                        }}
+                                        disabled={!isValidWebUrl}
+                                        className="flex-1 py-3 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-800 disabled:text-slate-500 text-white font-black rounded-xl text-xs transition-all"
+                                    >
+                                        {copySuccess ? '✓ Đã sao chép Link gửi cho Học sinh!' : '📋 Sao chép Link gửi nhóm Zalo lớp'}
+                                    </button>
+                                    <button 
+                                        onClick={() => setShowQrModal(false)}
+                                        className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-gray-200 font-bold rounded-xl text-xs"
+                                    >
+                                        Đóng
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Thanh giả lập nhanh Học sinh chọn đáp án A/B/C/D ngay trên màn hình Giáo viên */}
+                    {previewStudentMode && (
+                        <div className="mb-3 bg-slate-900/95 border-2 border-sky-500 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shrink-0 animate-fade-in shadow-lg">
+                            <div className="flex items-center gap-2 text-xs font-bold text-sky-300">
+                                <span>📱 GIẢ LẬP HỌC SINH CHỌN ĐÁP ÁN:</span>
+                                <select 
+                                    value={currentStudentId || ""}
+                                    onChange={(e) => setCurrentStudentId(e.target.value)}
+                                    className="bg-slate-800 border border-blue-700 rounded-xl px-3 py-1.5 text-white font-bold"
+                                >
+                                    <option value="">-- Chọn tên học sinh --</option>
+                                    {students.filter(s => s.active).map(s => (
+                                        <option key={s.id} value={s.id}>#{s.num} {s.name} ({s.score}đ)</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400 font-bold">Chọn nhanh:</span>
+                                {['A', 'B', 'C', 'D'].map(opt => (
+                                    <button
+                                        key={opt}
+                                        type="button"
+                                        disabled={!currentStudentId || gameState !== 'running'}
+                                        onClick={() => submitStudentChoice(opt)}
+                                        className={`px-4 py-1.5 rounded-xl font-black text-xs transition-all ${
+                                            currentStudentId && answers[currentStudentId] === opt
+                                                ? 'bg-yellow-400 text-black shadow'
+                                                : 'bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 disabled:text-slate-600 text-white'
+                                        }`}
+                                    >
+                                        Đáp án {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Bố cục chính 2 cột */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0">
+                        
+                        {/* Cột Trái (9 phần): Câu hỏi 4 lựa chọn + Sàn thi đấu + Nút điều khiển */}
+                        <div className="lg:col-span-9 flex flex-col gap-3 min-h-0">
+                            
+                            {/* Khung hiển thị Câu hỏi trắc nghiệm 4 lựa chọn & Đồng hồ */}
+                            <div className="bg-[#0b132c] rounded-2xl p-4 sm:p-5 border border-blue-800/60 shadow-xl flex flex-col sm:flex-row gap-4 shrink-0 relative overflow-hidden">
+                                <div className="flex-1 flex flex-col justify-between relative z-10">
+                                    <div>
+                                        <div className="text-yellow-400 font-bold text-xs tracking-widest uppercase mb-1.5 flex items-center gap-3 flex-wrap">
+                                            <span>⚡ {gameState === 'ready' ? 'SẴN SÀNG' : (gameState === 'running' ? 'HỌC SINH ĐANG CHỌN ĐÁP ÁN TRÊN ĐIỆN THOẠI' : 'ĐÃ CHỐT CÂU & CHẤM ĐIỂM')}</span>
+                                            {gameState !== 'ready' && (
+                                                <span className="px-2.5 py-0.5 bg-sky-900/80 border border-sky-400/40 rounded-full text-sky-300">
+                                                    Đã nộp: {answeredCount}/{activeCount} HS
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {gameState === 'ready' ? (
+                                            <div className="py-4 animate-fade-in">
+                                                <h2 className="text-2xl sm:text-3xl font-black text-white mb-2">Mời cả lớp chuẩn bị Câu số {currentQ + 1}!</h2>
+                                                <p className="text-gray-300 text-sm">
+                                                    Hiện có <strong className="text-sky-400">{activeCount}/{students.length} học sinh</strong> đang ở trên sàn thi đấu. Giáo viên bấm <strong className="text-yellow-400">"1. Bắt đầu Câu {currentQ + 1}"</strong> để mở câu hỏi trắc nghiệm trên máy chiếu và điện thoại của học sinh.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3 animate-fade-in">
+                                                <h2 className="text-lg sm:text-xl font-bold text-white leading-snug">
+                                                    {currentQuestionObj.q}
+                                                </h2>
+
+                                                {/* Lưới 4 phương án A, B, C, D trên màn hình Giáo viên */}
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {['A', 'B', 'C', 'D'].map(letter => {
+                                                        const isCorrectOpt = currentQuestionObj.correct === letter;
+                                                        let optStyle = "bg-slate-900/90 border-blue-800/70 text-gray-100";
+                                                        if (gameState === 'locked') {
+                                                            if (isCorrectOpt) {
+                                                                optStyle = "bg-sky-500/30 border-sky-400 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]";
+                                                            } else {
+                                                                optStyle = "bg-slate-900/40 border-slate-800 text-gray-500 opacity-60";
+                                                            }
+                                                        }
+                                                        return (
+                                                            <div key={letter} className={`p-2.5 rounded-xl border-2 flex items-center gap-2.5 ${optStyle}`}>
+                                                                <span className={`w-7 h-7 rounded-lg font-black text-xs flex items-center justify-center shrink-0 ${
+                                                                    gameState === 'locked' && isCorrectOpt ? 'bg-sky-400 text-black' : 'bg-blue-900/70 text-yellow-400 border border-blue-600/50'
+                                                                }`}>
+                                                                    {letter}
+                                                                </span>
+                                                                <span className="font-bold text-sm">{currentQuestionObj.options[letter]}</span>
+                                                                {gameState === 'locked' && isCorrectOpt && (
+                                                                    <span className="ml-auto text-xs font-black text-sky-300">✓ ĐÚNG</span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {gameState === 'locked' && (
+                                                    <div className="p-2.5 bg-emerald-950/60 border border-emerald-500/50 rounded-xl flex flex-wrap items-center justify-between gap-2">
+                                                        <span className="text-emerald-300 font-bold text-sm">
+                                                            ✓ Giải thích: <strong className="text-white">{currentQuestionObj.a}</strong>
+                                                        </span>
+                                                        <div className="flex gap-2 text-xs font-bold">
+                                                            <span className="px-2.5 py-1 bg-sky-500 text-white rounded-lg">
+                                                                Đúng (Xanh): {activeCorrectCount} HS
+                                                            </span>
+                                                            <span className="px-2.5 py-1 bg-slate-700 text-gray-200 rounded-lg">
+                                                                Sai / Chưa nộp (Xám): {activeWrongCount} HS
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Đồng hồ đếm ngược */}
+                                <div className="sm:w-40 flex flex-col items-center justify-center relative z-10 sm:border-l border-blue-800/50 sm:pl-4 shrink-0">
+                                    <div className="relative w-28 h-28 flex items-center justify-center">
+                                        <svg className="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]" viewBox="0 0 144 144">
+                                            <circle cx="72" cy="72" r="62" stroke="#1e293b" strokeWidth="10" fill="none" />
+                                            <circle 
+                                                cx="72" cy="72" r="62" 
+                                                stroke={timeLeft <= 5 ? '#ef4444' : '#facc15'} 
+                                                strokeWidth="10" fill="none" 
+                                                strokeDasharray="390" 
+                                                strokeDashoffset={390 - (timeLeft/TIME_LIMIT)*390} 
+                                                className="timer-circle" 
+                                                strokeLinecap="round" 
+                                            />
+                                        </svg>
+                                        <div className={`text-4xl font-black ${timeLeft <= 5 && gameState === 'running' ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                                            {timeLeft}
+                                        </div>
+                                    </div>
+                                    <div className="text-gray-400 font-bold text-xs mt-1 tracking-widest">GIÂY</div>
+                                </div>
+                            </div>
+
+                            {/* Sàn thi đấu (Hiển thị toàn bộ học sinh, điểm số và đáp án A/B/C/D) */}
+                            <div className="bg-[#0b132c] rounded-2xl p-4 border border-blue-800/60 shadow-xl flex-1 flex flex-col min-h-[280px]">
+                                <div className="flex flex-wrap justify-between items-center mb-3 gap-2 shrink-0">
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        <h3 className="text-yellow-400 font-black text-xs tracking-widest uppercase bg-yellow-400/10 px-3 py-1 rounded-lg">
+                                            SÀN THI ĐẤU ({activeCount}/{students.length} HS)
+                                        </h3>
+                                        <span className="text-gray-300 text-xs flex items-center gap-3">
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <span className="w-3 h-3 rounded bg-sky-500 inline-block"></span>
+                                                <strong>Xanh da trời:</strong> Đang thi / Trả lời ĐÚNG
+                                            </span>
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <span className="w-3 h-3 rounded bg-slate-700 inline-block"></span>
+                                                <strong>Xám:</strong> Trả lời SAI / Đã bị loại
+                                            </span>
+                                        </span>
+                                    </div>
+                                    <span className="text-[11px] text-sky-300 italic">
+                                        {gameState === 'locked' ? '💡 Nhấp vào ô HS nếu muốn đổi Đúng (Xanh) ↔ Sai (Xám)' : '💡 Nhấp vào ô HS để Loại / Khôi phục thủ công'}
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-2.5 overflow-y-auto custom-scroll pr-1 flex-1 content-start">
+                                    {students.map(s => {
+                                        const ansText = answers[s.id] || "";
+                                        const isCorrect = isStudentCorrect(s.id);
+
+                                        let cardStyle = "";
+                                        if (!s.active) {
+                                            cardStyle = "bg-slate-900/70 border-slate-800 text-slate-500 opacity-50";
+                                        } else if (gameState === 'locked') {
+                                            if (isCorrect) {
+                                                cardStyle = "bg-gradient-to-b from-sky-400 to-sky-600 border-sky-200 shadow-[0_0_15px_rgba(56,189,248,0.45)] text-white";
+                                            } else {
+                                                cardStyle = "bg-slate-700/90 border-slate-500 text-slate-300";
+                                            }
+                                        } else {
+                                            cardStyle = "bg-gradient-to-b from-sky-500 to-sky-700 border-sky-400/80 shadow-[0_4px_12px_rgba(56,189,248,0.2)] text-white";
+                                        }
+
+                                        return (
+                                            <button 
+                                                key={s.id} 
+                                                onClick={() => handleTeacherClickStudent(s)}
+                                                className={`student-btn rounded-xl p-2.5 flex flex-col justify-between border-2 h-24 text-left relative overflow-hidden ${cardStyle}`}
+                                            >
+                                                {/* Hàng trên: STT + Chấm xanh Online + Điểm số */}
+                                                <div className="w-full flex justify-between items-center">
+                                                    <span className="font-black text-xs flex items-center gap-1">
+                                                        #{s.num}
+                                                        {s.joined && <span title="Đã vào trên điện thoại" className="w-2 h-2 rounded-full bg-emerald-300 inline-block"></span>}
+                                                    </span>
+                                                    <span className="text-[11px] px-1.5 py-0.5 rounded font-black bg-black/30 text-yellow-300">
+                                                        {s.score}đ
+                                                    </span>
+                                                </div>
+
+                                                {/* Giữa: Họ tên học sinh */}
+                                                <div className={`text-xs font-bold w-full truncate leading-tight my-0.5 ${!s.active ? 'line-through text-slate-500' : ''}`}>
+                                                    {s.name}
+                                                </div>
+
+                                                {/* Hàng dưới: Hiển thị đáp án của học sinh */}
+                                                <div className={`w-full px-1.5 py-1 rounded-lg text-[11px] font-black truncate text-center ${
+                                                    !s.active 
+                                                        ? 'bg-slate-950/60 text-slate-600' 
+                                                        : gameState === 'locked'
+                                                            ? (isCorrect ? 'bg-sky-950/70 text-yellow-300 border border-sky-200/40' : 'bg-slate-800 text-slate-400 line-through')
+                                                            : (ansText ? 'bg-yellow-400 text-black' : 'bg-black/20 text-sky-100/70')
+                                                }`}>
+                                                    {!s.active 
+                                                        ? 'Đã bị loại' 
+                                                        : gameState === 'running' 
+                                                            ? (ansText ? '✓ Đã chọn' : 'Đang chọn...') 
+                                                            : gameState === 'locked'
+                                                                ? (ansText ? `Chọn: ${ansText}` : 'Chưa nộp')
+                                                                : 'Trên sàn'}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Thanh nút điều khiển quy trình 4 bước của Giáo viên */}
+                            <div className="bg-[#0b132c] rounded-2xl p-3.5 border border-blue-800/60 shadow-xl flex flex-wrap gap-2.5 items-center shrink-0">
+                                <button onClick={startQuestion} disabled={gameState !== 'ready'} 
+                                    className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all 
+                                    ${gameState === 'ready' ? 'bg-yellow-400 text-black hover:bg-yellow-300 shadow-[0_0_15px_rgba(250,204,21,0.4)]' : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
+                                    <span>▶</span> 1. Bắt đầu Câu {currentQ + 1}
+                                </button>
+                                
+                                <button onClick={lockAnswer} disabled={gameState !== 'running'} 
+                                    className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all
+                                    ${gameState === 'running' ? 'bg-sky-500 text-white hover:bg-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.4)]' : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
+                                    <span>✓</span> 2. Chốt & Hiện Đáp Án
+                                </button>
+
+                                <button onClick={eliminateWrongStudents} disabled={gameState !== 'locked' || activeWrongCount === 0} 
+                                    className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all
+                                    ${gameState === 'locked' && activeWrongCount > 0 ? 'bg-rose-600 text-white hover:bg-rose-500 shadow-[0_0_15px_rgba(225,29,72,0.5)] animate-pulse' : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
+                                    <span>✖</span> 3. Xóa tên HS trả lời sai ({activeWrongCount})
+                                </button>
+
+                                <button onClick={nextQuestion} disabled={gameState !== 'locked' || currentQ === QUESTIONS.length - 1} 
+                                    className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all
+                                    ${gameState === 'locked' && currentQ < QUESTIONS.length - 1 ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-[0_0_15px_rgba(5,150,105,0.4)]' : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
+                                    4. Câu tiếp theo <span>⏭</span>
+                                </button>
+                                
+                                <div className="flex-1"></div>
+
+                                <button 
+                                    onClick={usePaperPlane}
+                                    disabled={(cloudState.paperPlaneLeft !== undefined ? cloudState.paperPlaneLeft : 1) <= 0 || students.filter(s => !s.active).length === 0}
+                                    className="px-3.5 py-2.5 bg-sky-900/50 hover:bg-sky-800/70 disabled:opacity-40 text-sky-200 border border-sky-500/50 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"
+                                >
+                                    <span>✈️</span> Phao máy bay giấy ({cloudState.paperPlaneLeft !== undefined ? cloudState.paperPlaneLeft : 1})
+                                </button>
+                                
+                                <button 
+                                    onClick={rescueAll}
+                                    disabled={(cloudState.rescuesLeft !== undefined ? cloudState.rescuesLeft : 2) <= 0}
+                                    className="px-4 py-2.5 bg-purple-900/50 hover:bg-purple-800/70 disabled:opacity-40 text-purple-200 border border-purple-500/50 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"
+                                >
+                                    <span>🛟</span> Cứu trợ ({cloudState.rescuesLeft !== undefined ? cloudState.rescuesLeft : 2})
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Cột Phải (3 phần): Thống kê trên sàn & Tháp 12 câu hỏi */}
+                        <div className="lg:col-span-3 flex flex-col gap-3 min-h-0">
+                            <div className="bg-[#0b132c] rounded-2xl p-4 border border-blue-800/60 shadow-xl text-center relative overflow-hidden shrink-0">
+                                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-70"></div>
+                                <h3 className="text-yellow-400 font-bold text-xs tracking-widest mb-1 uppercase">Đang trên sàn</h3>
+                                <div className="text-4xl sm:text-5xl font-black mb-1 flex justify-center items-baseline gap-1">
+                                    <span className={activeCount === 0 ? 'text-red-500' : 'text-sky-400'}>
+                                        {activeCount}
+                                    </span>
+                                    <span className="text-slate-600 text-2xl">/{students.length}</span>
+                                </div>
+                                <div className="text-xs text-gray-300 font-medium">
+                                    Đã kết nối Điện thoại: <strong className="text-emerald-400">{students.filter(s => s.joined).length} HS</strong>
+                                </div>
+                            </div>
+
+                            {/* Hành trình 12 câu hỏi */}
+                            <div className="bg-[#0b132c] rounded-2xl p-4 border border-blue-800/60 shadow-xl flex-1 flex flex-col min-h-0">
+                                <h3 className="text-yellow-400 font-black text-xs tracking-widest mb-2.5 flex items-center gap-2 uppercase">
+                                    <span>🏆</span> Tháp 12 Câu Hỏi (Chương 3)
+                                </h3>
+                                
+                                <div className="flex-1 overflow-y-auto custom-scroll pr-1 flex flex-col-reverse gap-1.5">
+                                    {QUESTIONS.map((q, idx) => {
+                                        const isCurrent = currentQ === idx;
+                                        const isPassed = currentQ > idx;
+                                        const isLast = idx === QUESTIONS.length - 1;
+                                        
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => updateGameState({ currentQ: idx, gameState: 'ready', timeLeft: TIME_LIMIT, answers: {}, evalOverrides: {} })}
+                                                className={`w-full p-2.5 rounded-xl border flex items-center gap-2.5 text-left transition-all ${
+                                                    isCurrent 
+                                                        ? 'bg-blue-900/70 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.3)]' 
+                                                        : isPassed 
+                                                            ? 'bg-emerald-950/30 border-emerald-800/40 opacity-75' 
+                                                            : 'bg-[#0f172a]/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                                                }`}
+                                            >
+                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                                                    isCurrent ? 'bg-sky-500 text-white' : isPassed ? 'bg-emerald-700 text-emerald-200' : 'bg-slate-800 text-slate-500'
+                                                }`}>
+                                                    {idx + 1}
+                                                </div>
+                                                <div className={`flex-1 font-bold text-xs truncate ${isCurrent ? 'text-white' : ''}`}>
+                                                    {isLast ? '🔔 Câu Chuông Vàng' : `Câu hỏi số ${idx + 1}`}
+                                                </div>
+                                                {isPassed && <span className="text-emerald-400 font-black text-xs">✓</span>}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bảng ĐƯỜNG ĐUA CHUNG (Đích 120 điểm = 12 câu x 10 điểm) giống hệt hình mẫu */}
+                    <div className="mt-4 bg-[#0b132c] rounded-2xl p-4 border border-blue-800/60 shadow-xl shrink-0">
+                        <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-yellow-400 font-black text-sm tracking-wide flex items-center gap-1.5">
+                                    <span>🏁</span> ĐƯỜNG ĐUA CHUNG
+                                </span>
+                                <span className="text-xs text-gray-300">
+                                    Đích: <strong>120 điểm</strong> (12 câu × 10 điểm) • Mỗi lần chốt câu, các em trả lời đúng trên sàn được <strong>+10 điểm</strong> • Em đã rời sàn giữ nguyên điểm
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setShowRaceTrack(!showRaceTrack)}
+                                className="text-xs font-bold text-sky-300 hover:text-white bg-slate-800 px-3 py-1 rounded-lg"
+                            >
+                                {showRaceTrack ? 'Thu gọn ▲' : 'Mở rộng ▼'}
+                            </button>
+                        </div>
+
+                        {showRaceTrack && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-2 max-h-48 overflow-y-auto custom-scroll pr-1">
+                                {students.map(s => {
+                                    const pct = Math.min(100, Math.round((s.score / 120) * 100));
+                                    return (
+                                        <div key={s.id} className="flex items-center gap-2 text-xs py-0.5">
+                                            <span className="w-5 text-yellow-400 font-black text-right shrink-0">{s.num}</span>
+                                            <span className={`w-28 truncate font-semibold ${s.active ? 'text-white' : 'text-slate-500 line-through'}`}>
+                                                {s.name}
+                                            </span>
+                                            <div className="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700/60">
+                                                <div 
+                                                    className={`h-full transition-all duration-500 rounded-full ${s.active ? 'bg-gradient-to-r from-sky-400 to-yellow-400' : 'bg-slate-600'}`}
+                                                    style={{ width: `${pct}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="w-9 text-right font-black text-yellow-400 shrink-0">{s.score}đ</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
